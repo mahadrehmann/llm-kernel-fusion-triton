@@ -11,12 +11,23 @@ y            = residual_out * rsqrt(mean(residual_out²) + eps) * weight
 
 ## Results
 
-> Run `python bench.py` on a GPU and paste `results.md` here. bf16, hidden sizes
-> 4096 / 5120 / 8192, 1 to 8192 tokens.
+Measured on Google Colab T4 with `python bench.py --dtype fp16`.
 
-<!-- RESULTS:START -->
-_Not yet measured._
-<!-- RESULTS:END -->
+> bf16 is intentionally excluded from headline comparisons on T4: the GPU has no
+> native bf16 support, and in this setup `torch.compile` does not optimize bf16
+> the same way it optimizes fp16. Reporting bf16 speedup vs compile would therefore
+> overstate kernel wins.
+
+| Regime | Tokens | Triton vs eager | Triton vs `torch.compile` | Triton % of peak HBM |
+|---|---:|---:|---:|---:|
+| Decode | 1-16 | 4.1-6.5x | 1.02-1.64x | 1-36% |
+| Mid batch | 128 | 4.0-6.5x | 0.93-1.12x | 55-68% |
+| Prefill | >=512 | 5.9-6.0x | 0.96-1.03x | 70-72% |
+
+Key fp16 takeaways:
+- ~5.9x median speedup vs eager PyTorch.
+- Up to ~230 GB/s effective bandwidth at prefill (~72% of T4 peak).
+- Roughly on par with `torch.compile` at prefill, but faster at decode for key shapes (about 1.4-1.6x at hidden sizes 5120/8192).
 
 ## Where the speedup comes from
 
